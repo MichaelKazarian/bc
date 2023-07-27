@@ -1,1 +1,1 @@
-# boiler-controller
+# Arduino based boiler controller regulator
