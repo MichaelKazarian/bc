@@ -1,3 +1,4 @@
+#include <EEPROM.h>
 #include <LiquidCrystal.h>
 #include <DallasTemperature.h>
 
@@ -17,28 +18,42 @@ void printAddress(DeviceAddress deviceAddress);
 void printTemperature(float t);
 void readEnc();
 void printRot(int v);
+void printState(bool v);
+void savedSetup();
+void saveSettingsTemp(int temp);
+bool checkStatus();
+void process();
+void heatStart();
+void heatStop();
+void printTempReady();
 
+const float DEFAULT_TEMP = 36;
 const int rs = 3, en = 4, d4 = 6, d5 = 7, d6 = 8, d7 = 9;
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
 int CLK = 11;  // Pin 11 to clk on encoder
 int DT = 10;  // Pin 10 to DT on encoder
+int MAIN_BTN = 12;
 int encoderPosCount = 0;
 int clkLast;
 int aVal;
 boolean bCW;
 float tempC = -99.9;
+int savedTemp = 0;
+const int SAVED_TEMP_ADDR = 0;
+bool heatStatus = false;
+bool printReady = true;
 
 void setup() {
   // initializes the LCD with the size in chars (16x2)
   lcd.begin(16, 2);
   lcd.print("Loading...");
-  //lcd.setCursor(4, 1);
-  //lcd.print("LCD 1604");
-  // start serial port
   delay(1000);
   Serial.begin(9600);
   Serial.println("Dallas Temperature IC Control Library Demo");
+
+  pinMode(MAIN_BTN, INPUT);
+  pinMode(MAIN_BTN, INPUT_PULLUP);
 
   // locate devices on the bus
   Serial.print("Locating devices...");
@@ -72,24 +87,22 @@ void setup() {
   lcd.clear();
   printTemperature(tempC);
 
+  savedSetup();
+
   pinMode (CLK,INPUT);
   pinMode (DT,INPUT);
   /* Read Pin A
      Whatever state it's in will reflect the last position
   */
   clkLast = digitalRead(CLK);
-  encoderPosCount = (int) tempC;
+  encoderPosCount = (int) savedTemp;
   printRot(encoderPosCount);
-  
 }
 
 int a = 100;
 int delayVal = 100;
+
 void loop() {
-  //Serial.print("a: ");
-  //Serial.println(a);
-  //Serial.print("delayVal: ");
-  //Serial.println(delayVal);
   if (a >= delayVal) {
     a = 0;
     delayVal = 100;
@@ -99,8 +112,40 @@ void loop() {
  
   }
   readEnc();
-  delay(5);
+  bool status = checkStatus();
+  printState(status);
+  if (encoderPosCount != savedTemp) saveSettingsTemp(encoderPosCount);
+  process();
+  delay(100);
   a++;
+}
+
+void process() {
+  if (tempC > savedTemp) {
+    printReady = true;
+    if (heatStatus == true) {
+      heatStop();
+      return;
+    }
+    printTempReady();
+  } else {
+    printReady = false;
+    bool status = checkStatus();
+    printState(status);
+  }
+  bool bs = digitalRead(MAIN_BTN);
+  if (bs == LOW && heatStatus == false) {
+    heatStart();
+    return;
+  }
+  if (bs == LOW && heatStatus == true) {
+    heatStop();
+    return;
+  }
+}
+
+bool checkStatus() {  
+  return heatStatus;
 }
 
 void readEnc() {
@@ -176,3 +221,46 @@ void printRot(int v) {
   lcd.setCursor(14, 0);
   lcd.print(v);
 }
+
+void printState(bool v) {
+  lcd.setCursor(10, 1);
+  lcd.print("     ");
+  lcd.setCursor(10, 1);
+  if (v == true) lcd.print("STOP");
+  else lcd.print("START");
+}
+
+void printTempReady() {
+  if (printReady == false) return;
+  lcd.setCursor(10, 1);
+  lcd.print("READY");
+  printReady = false;
+}
+
+void savedSetup() {
+    EEPROM.get(SAVED_TEMP_ADDR, savedTemp);    
+    Serial.print("Saved value ");
+    Serial.println(savedTemp);
+    if (savedTemp == -1) saveSettingsTemp(DEFAULT_TEMP);
+}
+
+void saveSettingsTemp(int temp) {
+  Serial.print("Save value ");
+  EEPROM.put(SAVED_TEMP_ADDR, temp);
+  savedTemp = temp;
+}
+
+void heatStart() {
+  lcd.setCursor(0, 1);
+  lcd.print("          ");
+  lcd.setCursor(0, 1);
+  lcd.print("HEATING   ");
+  heatStatus = true;
+}
+
+void heatStop() {
+  lcd.setCursor(0, 1);
+  lcd.print("          ");
+  heatStatus = false;
+}
+
