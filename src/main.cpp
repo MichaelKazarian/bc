@@ -18,16 +18,24 @@ void printAddress(DeviceAddress deviceAddress);
 void printTemperature(float t);
 void readEnc();
 void printRot(int v);
-void printState(bool v);
+void printState();
 void savedSetup();
 void saveSettingsTemp(int temp);
-bool checkStatus();
 void process();
 void heatStart();
 void heatStop();
 void printTempReady();
+void printStart();
+void printStop();
+int isBtnLow(int btn);
+int isTempReady();
 
-const float DEFAULT_TEMP = 36;
+const int SAVED_TEMP_ADDR      = 0;
+const int STATUS_MON_UNDEFINED = -1;
+const int STATUS_MON_READY     = 0;
+const int STATUS_MON_STOP      = 1;
+const int STATUS_MON_START     = 2;
+const float DEFAULT_TEMP       = 36;
 const int rs = 3, en = 4, d4 = 6, d5 = 7, d6 = 8, d7 = 9;
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
@@ -38,11 +46,11 @@ int encoderPosCount = 0;
 int clkLast;
 int aVal;
 boolean bCW;
+float prevTemp= -99.9;
 float tempC = -99.9;
 int savedTemp = 0;
-const int SAVED_TEMP_ADDR = 0;
+int statusMon = STATUS_MON_UNDEFINED;
 bool heatStatus = false;
-bool printReady = true;
 
 void setup() {
   // initializes the LCD with the size in chars (16x2)
@@ -97,43 +105,39 @@ void setup() {
   clkLast = digitalRead(CLK);
   encoderPosCount = (int) savedTemp;
   printRot(encoderPosCount);
+  saveSettingsTemp(29);
 }
 
 int a = 100;
 int delayVal = 100;
 
+
 void loop() {
   if (a >= delayVal) {
     a = 0;
-    delayVal = 100;
+    delayVal = 10;
     sensors.requestTemperatures(); // Send the command to get temperatures
     tempC = sensors.getTempC(insideThermometer);
-    printTemperature(tempC); 
- 
+01    if (tempC != prevTemp) printTemperature(tempC);
+    prevTemp = tempC;
   }
-  readEnc();
-  bool status = checkStatus();
-  printState(status);
-  if (encoderPosCount != savedTemp) saveSettingsTemp(encoderPosCount);
+  // readEnc();
+  printState();
+  //if (encoderPosCount != savedTemp) saveSettingsTemp(encoderPosCount);
   process();
-  delay(100);
+  delay(50);
   a++;
 }
 
 void process() {
-  if (tempC > savedTemp) {
-    printReady = true;
+  if (isTempReady() == true) {
     if (heatStatus == true) {
       heatStop();
       return;
     }
     printTempReady();
-  } else {
-    printReady = false;
-    bool status = checkStatus();
-    printState(status);
   }
-  bool bs = digitalRead(MAIN_BTN);
+  int bs = isBtnLow(MAIN_BTN);
   if (bs == LOW && heatStatus == false) {
     heatStart();
     return;
@@ -144,8 +148,14 @@ void process() {
   }
 }
 
-bool checkStatus() {  
-  return heatStatus;
+int isTempReady() {
+  return (tempC > savedTemp);
+}
+
+int isBtnLow(int btn) {
+  if (digitalRead(MAIN_BTN) == HIGH) return HIGH;
+  delay(20);
+  return digitalRead(MAIN_BTN);
 }
 
 void readEnc() {
@@ -190,8 +200,7 @@ void printAddress(DeviceAddress deviceAddress)
 }
 
 // function to print the temperature for a device
-void printTemperature(float t)
-{
+void printTemperature(float t) {
   char text[50] = {0};
   int tmp;
   float tC = sensors.getTempC(insideThermometer);
@@ -210,9 +219,8 @@ void printTemperature(float t)
   lcd.print(text);
   lcd.print((char) 223);
   lcd.print("C");
-  //Serial.print("Temp C: ");
-  //Serial.print(text);
-  //Serial.print("\n");
+  Serial.print("Temp C: ");
+  Serial.println(text);
 }
 
 void printRot(int v) {
@@ -222,19 +230,39 @@ void printRot(int v) {
   lcd.print(v);
 }
 
-void printState(bool v) {
+void printStop() {
+  if (statusMon == STATUS_MON_STOP) return;
   lcd.setCursor(10, 1);
   lcd.print("     ");
   lcd.setCursor(10, 1);
-  if (v == true) lcd.print("STOP");
-  else lcd.print("START");
+  lcd.print("STOP");
+  statusMon = STATUS_MON_STOP;
+}
+
+void printStart() {
+  if (statusMon == STATUS_MON_START) return;
+  lcd.setCursor(10, 1);
+  lcd.print("     ");
+  lcd.setCursor(10, 1);
+  lcd.print("START");
+  statusMon = STATUS_MON_START;
+}
+
+void printState() {
+  if (isTempReady() == true) printTempReady();
+  else {
+    if (heatStatus == true) printStop();
+    else printStart();
+  }
 }
 
 void printTempReady() {
-  if (printReady == false) return;
+  if (statusMon == STATUS_MON_READY) return;
   lcd.setCursor(10, 1);
+  Serial.println(statusMon);
+  Serial.println("READY");
   lcd.print("READY");
-  printReady = false;
+  statusMon = STATUS_MON_READY;
 }
 
 void savedSetup() {
