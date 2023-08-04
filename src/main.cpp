@@ -138,14 +138,15 @@ void process() {
     printTempReady();
   }
   int bs = isBtnLow(MAIN_BTN);
-  if (bs == LOW && heatStatus == false) {
-    heatStart();
-    return;
+  if (bs == HIGH && btnMainPressed == false) return;
+  // Run if pressed once. (Avoid STOP/START switching if btn is long pressed)
+  if (bs == LOW && btnMainPressed == false) {
+      if (heatStatus == false) heatStart();
+      else heatStop();
+      btnMainPressed = true;
   }
-  if (bs == LOW && heatStatus == true) {
-    heatStop();
-    return;
-  }
+  // Long pressed ended
+  if (bs == HIGH && btnMainPressed == true) btnMainPressed = false;
 }
 
 int isTempReady() {
