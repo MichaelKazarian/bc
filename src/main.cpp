@@ -39,9 +39,10 @@ const float DEFAULT_TEMP       = 36;
 const int rs = 3, en = 4, d4 = 6, d5 = 7, d6 = 8, d7 = 9;
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
-int CLK = 11;  // Pin 11 to clk on encoder
-int DT = 10;  // Pin 10 to DT on encoder
-int MAIN_BTN = 12;
+int const CLK = 11;  // Pin 11 to clk on encoder
+int const DT = 10;  // Pin 10 to DT on encoder
+int const MAIN_BTN = 12;
+int const HEAT_PIN = 13;
 int encoderPosCount = 0;
 int clkLast;
 int aVal;
@@ -51,17 +52,20 @@ float tempC = -99.9;
 int savedTemp = 0;
 int statusMon = STATUS_MON_UNDEFINED;
 bool heatStatus = false;
+bool btnMainPressed = false;
 
 void setup() {
+  pinMode(MAIN_BTN, INPUT);
+  pinMode(MAIN_BTN, INPUT_PULLUP);
+  pinMode(HEAT_PIN, OUTPUT);
+  heatStop();
+  
   // initializes the LCD with the size in chars (16x2)
   lcd.begin(16, 2);
   lcd.print("Loading...");
-  delay(1000);
+  delay(500);
   Serial.begin(9600);
   Serial.println("Dallas Temperature IC Control Library Demo");
-
-  pinMode(MAIN_BTN, INPUT);
-  pinMode(MAIN_BTN, INPUT_PULLUP);
 
   // locate devices on the bus
   Serial.print("Locating devices...");
@@ -118,7 +122,7 @@ void loop() {
     delayVal = 10;
     sensors.requestTemperatures(); // Send the command to get temperatures
     tempC = sensors.getTempC(insideThermometer);
-01    if (tempC != prevTemp) printTemperature(tempC);
+    if (tempC != prevTemp) printTemperature(tempC);
     prevTemp = tempC;
   }
   // readEnc();
@@ -280,16 +284,18 @@ void saveSettingsTemp(int temp) {
 }
 
 void heatStart() {
+  digitalWrite(HEAT_PIN, HIGH);
+  heatStatus = true;
   lcd.setCursor(0, 1);
   lcd.print("          ");
   lcd.setCursor(0, 1);
   lcd.print("HEATING   ");
-  heatStatus = true;
 }
 
 void heatStop() {
+  digitalWrite(HEAT_PIN, LOW);
+  heatStatus = false;
   lcd.setCursor(0, 1);
   lcd.print("          ");
-  heatStatus = false;
 }
 
