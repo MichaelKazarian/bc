@@ -16,7 +16,7 @@ DeviceAddress insideThermometer;
 
 void printAddress(DeviceAddress deviceAddress);
 void printTemperature(float t);
-void readEnc();
+void readTempSettings();
 void printRot(int v);
 void printState();
 void savedSetup();
@@ -30,33 +30,36 @@ void printStop();
 int isBtnLow(int btn);
 int isTempReady();
 
-const int SAVED_TEMP_ADDR      = 0;
-const int STATUS_MON_UNDEFINED = -1;
-const int STATUS_MON_READY     = 0;
-const int STATUS_MON_STOP      = 1;
-const int STATUS_MON_START     = 2;
-const float DEFAULT_TEMP       = 36;
+const int SAVED_TEMP_ADDR       = 4;
+const int STATUS_MON_UNDEFINED  = -1;
+const int STATUS_MON_READY      = 0;
+const int STATUS_MON_STOP       = 1;
+const int STATUS_MON_START      = 2;
+const float DEFAULT_TEMP        = 36;
+int const BTN_TEMP_SETTING_DOWN = 10; 
+int const BTN_TEMP_SETTING_UP   = 11;
+
 const int rs = 3, en = 4, d4 = 6, d5 = 7, d6 = 8, d7 = 9;
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
-int const CLK = 11;  // Pin 11 to clk on encoder
-int const DT = 10;  // Pin 10 to DT on encoder
+
 int const MAIN_BTN = 12;
 int const HEAT_PIN = 13;
-int encoderPosCount = 0;
-int clkLast;
-int aVal;
-boolean bCW;
+int settingTemp = 0;
 float prevTemp= -99.9;
 float tempC = -99.9;
 int savedTemp = 0;
 int statusMon = STATUS_MON_UNDEFINED;
 bool heatStatus = false;
 bool btnMainPressed = false;
-
+unsigned long last_run = 0;
 void setup() {
   pinMode(MAIN_BTN, INPUT);
+  pinMode(BTN_TEMP_SETTING_UP, INPUT);
+  pinMode(BTN_TEMP_SETTING_DOWN, INPUT);
   pinMode(MAIN_BTN, INPUT_PULLUP);
+  pinMode(BTN_TEMP_SETTING_UP, INPUT_PULLUP);
+  pinMode(BTN_TEMP_SETTING_DOWN, INPUT_PULLUP);
   pinMode(HEAT_PIN, OUTPUT);
   heatStop();
   
@@ -101,15 +104,9 @@ void setup() {
 
   savedSetup();
 
-  pinMode (CLK,INPUT);
-  pinMode (DT,INPUT);
-  /* Read Pin A
-     Whatever state it's in will reflect the last position
-  */
-  clkLast = digitalRead(CLK);
-  encoderPosCount = (int) savedTemp;
-  printRot(encoderPosCount);
-  saveSettingsTemp(29);
+  settingTemp = (int) savedTemp;
+  printRot(settingTemp);
+  // saveSettingsTemp(29);
 }
 
 int a = 100;
@@ -125,9 +122,8 @@ void loop() {
     if (tempC != prevTemp) printTemperature(tempC);
     prevTemp = tempC;
   }
-  // readEnc();
+  readTempSettings();
   printState();
-  //if (encoderPosCount != savedTemp) saveSettingsTemp(encoderPosCount);
   process();
   delay(50);
   a++;
@@ -145,9 +141,9 @@ void process() {
   if (bs == HIGH && btnMainPressed == false) return;
   // Run if pressed once. (Avoid STOP/START switching if btn is long pressed)
   if (bs == LOW && btnMainPressed == false) {
-      if (heatStatus == false) heatStart();
-      else heatStop();
-      btnMainPressed = true;
+    if (heatStatus == false) heatStart();
+    else heatStop();
+    btnMainPressed = true;
   }
   // Long pressed ended
   if (bs == HIGH && btnMainPressed == true) btnMainPressed = false;
@@ -158,40 +154,9 @@ int isTempReady() {
 }
 
 int isBtnLow(int btn) {
-  if (digitalRead(MAIN_BTN) == HIGH) return HIGH;
-  delay(20);
-  return digitalRead(MAIN_BTN);
-}
-
-void readEnc() {
-  aVal = digitalRead(CLK);
-  if (aVal != clkLast){ // Means the knob is rotating
-    // if the knob is rotating, we need to determine direction
-    // We do that by reading pin B.
-    delayVal = 200;
-    a=0;
-    if (digitalRead(DT) != aVal) { // Means pin A Changed first - We're Rotating Clockwise
-      encoderPosCount--;
-      bCW = true;
-    } else {// Otherwise B changed first and we're moving CCW
-      bCW = false;
-      encoderPosCount++;
-    }
-    Serial.print ("Rotated: ");
-    if (bCW){
-      Serial.println ("clockwise");
-    }else{
-      Serial.println("counterclockwise");
-    }
-
-    if (encoderPosCount < 1) encoderPosCount = 1;
-    if (encoderPosCount > 99) encoderPosCount = 99;
-
-    Serial.print("Encoder Position: ");
-    Serial.println(encoderPosCount);
-    printRot(encoderPosCount);
-  }
-  clkLast = aVal;
+  if (digitalRead(btn) == HIGH) return HIGH;
+  delay(200);
+  return digitalRead(btn);
 }
 
 // function to print a device address
@@ -271,10 +236,10 @@ void printTempReady() {
 }
 
 void savedSetup() {
-    EEPROM.get(SAVED_TEMP_ADDR, savedTemp);    
-    Serial.print("Saved value ");
-    Serial.println(savedTemp);
-    if (savedTemp == -1) saveSettingsTemp(DEFAULT_TEMP);
+  EEPROM.get(SAVED_TEMP_ADDR, savedTemp);    
+  Serial.print("Saved value ");
+  Serial.println(savedTemp);
+  if (savedTemp == -1) saveSettingsTemp(DEFAULT_TEMP);
 }
 
 void saveSettingsTemp(int temp) {
@@ -297,5 +262,16 @@ void heatStop() {
   heatStatus = false;
   lcd.setCursor(0, 1);
   lcd.print("          ");
+}
+
+void readTempSettings() {
+  if (isBtnLow(BTN_TEMP_SETTING_UP))   settingTemp++;
+  if (isBtnLow(BTN_TEMP_SETTING_DOWN)) settingTemp--;
+  if (settingTemp < 10) settingTemp = 10;
+  if (settingTemp > 70) settingTemp = 70;
+  if (settingTemp != savedTemp) {
+    saveSettingsTemp(settingTemp);
+    printRot(settingTemp);
+  }
 }
 
