@@ -2,140 +2,87 @@
 #include <LiquidCrystal.h>
 #include <DallasTemperature.h>
 
-// Data wire is plugged into port 2 on the Arduino
 #define ONE_WIRE_BUS 2
 
-// Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
-OneWire oneWire(ONE_WIRE_BUS);
+OneWire oneWire(ONE_WIRE_BUS);       // OneWire instance setup
+DallasTemperature sensors(&oneWire); //Pass 1Wire reference to DallasTemperature
+DeviceAddress insideThermometer;     // arrays to hold device address
 
-// Pass our oneWire reference to Dallas Temperature. 
-DallasTemperature sensors(&oneWire);
-
-// arrays to hold device address
-DeviceAddress insideThermometer;
-
-void printAddress(DeviceAddress deviceAddress);
-void printTemperature(float t);
+void lcdprintTemperature(float t);
 void readTempSettings();
-void printRot(int v);
-void printState();
-void savedSetup();
+void lcdprintTempSetting(int v);
+void lcdprintState();
+void loadSavedSettings();
 void saveSettingsTemp(int temp);
-void process();
+void tempObserve();
 void heatStart();
 void heatStop();
-void printTempReady();
-void printStart();
-void printStop();
+void lcdprintTempReady();
+void lcdprintStart();
+void lcdprintStop();
+void btnsSetup();
+void tempSensorSetup();
 int isBtnLow(int btn);
 int isTempReady();
+void tempSensorRead();
 
-const int SAVED_TEMP_ADDR       = 4;
-const int STATUS_MON_UNDEFINED  = -1;
-const int STATUS_MON_READY      = 0;
-const int STATUS_MON_STOP       = 1;
-const int STATUS_MON_START      = 2;
-const float DEFAULT_TEMP        = 36;
-int const BTN_TEMP_SETTING_DOWN = 10; 
-int const BTN_TEMP_SETTING_UP   = 11;
+const int SAVED_TEMP_ADDR        = 4;
+const int STATUS_MON_UNDEFINED   = -1;
+const int STATUS_MON_READY       = 0;
+const int STATUS_MON_STOP        = 1;
+const int STATUS_MON_START       = 2;
+const float DEFAULT_TEMP         = 36;
+const int  BTN_TEMP_SETTING_DOWN = 10; 
+const int BTN_TEMP_SETTING_UP    = 11;
+const int TEMP_READ_PERIOD       = 100;
+const int BTN_PRESS_PERIOD       = 200;
 
 const int rs = 3, en = 4, d4 = 6, d5 = 7, d6 = 8, d7 = 9;
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
-
 int const MAIN_BTN = 12;
 int const HEAT_PIN = 13;
 int settingTemp = 0;
-float prevTemp= -99.9;
+float tempPrev= -99.9;
 float tempC = -99.9;
 int savedTemp = 0;
 int statusMon = STATUS_MON_UNDEFINED;
 bool heatStatus = false;
 bool btnMainPressed = false;
-unsigned long last_run = 0;
+unsigned long tempTimeLastRead = 0;
+
 void setup() {
-  pinMode(MAIN_BTN, INPUT);
-  pinMode(BTN_TEMP_SETTING_UP, INPUT);
-  pinMode(BTN_TEMP_SETTING_DOWN, INPUT);
-  pinMode(MAIN_BTN, INPUT_PULLUP);
-  pinMode(BTN_TEMP_SETTING_UP, INPUT_PULLUP);
-  pinMode(BTN_TEMP_SETTING_DOWN, INPUT_PULLUP);
-  pinMode(HEAT_PIN, OUTPUT);
+  btnsSetup();
   heatStop();
   
-  // initializes the LCD with the size in chars (16x2)
-  lcd.begin(16, 2);
+  lcd.begin(16, 2); // (16x2) LCD initialize
   lcd.print("Loading...");
   delay(500);
   Serial.begin(9600);
-  Serial.println("Dallas Temperature IC Control Library Demo");
-
-  // locate devices on the bus
-  Serial.print("Locating devices...");
-  sensors.begin();
-  Serial.print("Found ");
-  Serial.print(sensors.getDeviceCount(), DEC);
-  Serial.println(" devices.");
-
-  // report parasite power requirements
-  Serial.print("Parasite power is: "); 
-  if (sensors.isParasitePowerMode()) Serial.println("ON");
-  else Serial.println("OFF");
-
-
-  if (!sensors.getAddress(insideThermometer, 0)) Serial.println("Unable to find address for Device 0");
-  else {
-    // show the addresses we found on the bus
-    Serial.print("Device 0 Address: ");
-    printAddress(insideThermometer);
-    Serial.println();
-
-    // set the resolution to 9 bit (Each Dallas/Maxim device is capable of several different resolutions)
-    sensors.setResolution(insideThermometer, 9);
- 
-    Serial.print("Device 0 Resolution: ");
-    Serial.print(sensors.getResolution(insideThermometer), DEC); 
-    Serial.println(); 
-  }
-  sensors.requestTemperatures(); // Send the command to get temperatures
-  tempC = sensors.getTempC(insideThermometer);
+  tempSensorSetup();
   lcd.clear();
-  printTemperature(tempC);
-
-  savedSetup();
+  lcdprintTemperature(tempC);
+  loadSavedSettings();
 
   settingTemp = (int) savedTemp;
-  printRot(settingTemp);
+  lcdprintTempSetting(settingTemp);
   // saveSettingsTemp(29);
 }
 
-int a = 100;
-int delayVal = 100;
-
-
 void loop() {
-  if (a >= delayVal) {
-    a = 0;
-    delayVal = 10;
-    sensors.requestTemperatures(); // Send the command to get temperatures
-    tempC = sensors.getTempC(insideThermometer);
-    if (tempC != prevTemp) printTemperature(tempC);
-    prevTemp = tempC;
-  }
+  tempSensorRead();
   readTempSettings();
-  printState();
-  process();
-  delay(50);
-  a++;
+  lcdprintState();
+  tempObserve();
 }
 
-void process() {
+void tempObserve() {
   if (isTempReady() == true) {
     if (heatStatus == true) {
       heatStop();
       return;
     }
-    printTempReady();
+    lcdprintTempReady();
   }
   int bs = isBtnLow(MAIN_BTN);
   if (bs == HIGH && btnMainPressed == false) return;
@@ -149,6 +96,18 @@ void process() {
   if (bs == HIGH && btnMainPressed == true) btnMainPressed = false;
 }
 
+void tempSensorRead() {
+  if ((unsigned long)(millis() - tempTimeLastRead) > TEMP_READ_PERIOD) {
+    tempTimeLastRead = millis();
+    sensors.requestTemperatures();
+    tempC = sensors.getTempC(insideThermometer);
+    Serial.println(millis() - tempTimeLastRead);
+    Serial.println(tempC);
+    if (tempC != tempPrev) lcdprintTemperature(tempC);
+    tempPrev = tempC;
+  }
+}
+
 int isTempReady() {
   return (tempC > savedTemp);
 }
@@ -159,23 +118,12 @@ int isBtnLow(int btn) {
   return digitalRead(btn);
 }
 
-// function to print a device address
-void printAddress(DeviceAddress deviceAddress)
-{
-  for (uint8_t i = 0; i < 8; i++)
-    {
-      if (deviceAddress[i] < 16) Serial.print("0");
-      Serial.print(deviceAddress[i], HEX);
-    }
-}
-
 // function to print the temperature for a device
-void printTemperature(float t) {
+void lcdprintTemperature(float t) {
   char text[50] = {0};
   int tmp;
   float tC = sensors.getTempC(insideThermometer);
-  if(tC == DEVICE_DISCONNECTED_C) 
-    {
+  if (tC == DEVICE_DISCONNECTED_C) {
       Serial.println("T error");
       return;
     }
@@ -193,14 +141,14 @@ void printTemperature(float t) {
   Serial.println(text);
 }
 
-void printRot(int v) {
+void lcdprintTempSetting(int v) {
   lcd.setCursor(10, 0);
   lcd.print("SET    ");
   lcd.setCursor(14, 0);
   lcd.print(v);
 }
 
-void printStop() {
+void lcdprintStop() {
   if (statusMon == STATUS_MON_STOP) return;
   lcd.setCursor(10, 1);
   lcd.print("     ");
@@ -209,7 +157,7 @@ void printStop() {
   statusMon = STATUS_MON_STOP;
 }
 
-void printStart() {
+void lcdprintStart() {
   if (statusMon == STATUS_MON_START) return;
   lcd.setCursor(10, 1);
   lcd.print("     ");
@@ -218,32 +166,27 @@ void printStart() {
   statusMon = STATUS_MON_START;
 }
 
-void printState() {
-  if (isTempReady() == true) printTempReady();
+void lcdprintState() {
+  if (isTempReady() == true) lcdprintTempReady();
   else {
-    if (heatStatus == true) printStop();
-    else printStart();
+    if (heatStatus == true) lcdprintStop();
+    else lcdprintStart();
   }
 }
 
-void printTempReady() {
+void lcdprintTempReady() {
   if (statusMon == STATUS_MON_READY) return;
   lcd.setCursor(10, 1);
-  Serial.println(statusMon);
-  Serial.println("READY");
   lcd.print("READY");
   statusMon = STATUS_MON_READY;
 }
 
-void savedSetup() {
+void loadSavedSettings() {
   EEPROM.get(SAVED_TEMP_ADDR, savedTemp);    
-  Serial.print("Saved value ");
-  Serial.println(savedTemp);
   if (savedTemp == -1) saveSettingsTemp(DEFAULT_TEMP);
 }
 
 void saveSettingsTemp(int temp) {
-  Serial.print("Save value ");
   EEPROM.put(SAVED_TEMP_ADDR, temp);
   savedTemp = temp;
 }
@@ -268,10 +211,33 @@ void readTempSettings() {
   if (isBtnLow(BTN_TEMP_SETTING_UP))   settingTemp++;
   if (isBtnLow(BTN_TEMP_SETTING_DOWN)) settingTemp--;
   if (settingTemp < 10) settingTemp = 10;
-  if (settingTemp > 70) settingTemp = 70;
+  if (settingTemp > 60) settingTemp = 60;
   if (settingTemp != savedTemp) {
     saveSettingsTemp(settingTemp);
-    printRot(settingTemp);
+    lcdprintTempSetting(settingTemp);
   }
 }
 
+void btnsSetup() {
+  pinMode(MAIN_BTN, INPUT);
+  pinMode(BTN_TEMP_SETTING_UP, INPUT);
+  pinMode(BTN_TEMP_SETTING_DOWN, INPUT);
+  pinMode(MAIN_BTN, INPUT_PULLUP);
+  pinMode(BTN_TEMP_SETTING_UP, INPUT_PULLUP);
+  pinMode(BTN_TEMP_SETTING_DOWN, INPUT_PULLUP);
+  pinMode(HEAT_PIN, OUTPUT);
+}
+
+void tempSensorSetup() {
+  sensors.begin();
+  if (!sensors.getAddress(insideThermometer, 0)) {
+    lcd.setCursor(0, 0);
+    lcd.print("No sensor");
+    delay(10000);
+    Serial.println("Unable to find address for Device 0");
+  } else {
+    sensors.setResolution(insideThermometer, 9);
+    sensors.requestTemperatures();
+    tempC = sensors.getTempC(insideThermometer);
+  }
+}
