@@ -60,7 +60,7 @@ unsigned long settingsLastSave = 0;
 void setup() {
   btnsSetup();
   heatStop();
-  
+
   lcd.begin(16, 2); // (16x2) LCD initialize
   lcd.print("Loading...");
   delay(500);
@@ -72,7 +72,6 @@ void setup() {
 
   settingTemp = (int) tempDesired;
   lcdprintTempSetting(settingTemp);
-  // tempSetToDesired(29);
 }
 
 void loop() {
@@ -124,7 +123,6 @@ int isBtnLow(int btn) {
   return digitalRead(btn);
 }
 
-// function to print the temperature for a device
 void lcdprintTemperature(float t) {
   char text[50] = {0};
   int tmp;
@@ -193,11 +191,22 @@ void loadSettings() {
   tempIsSaved = true;
 }
 
+/**
+ * \brief Set desired temperature.
+ *
+ * \details To avoid freezing while value saving, you need to check encoder
+ * is stopped and save a value in the main loop.
+ */
 void tempSetToDesired(int temp) {
   tempDesired = temp;
   tempIsSaved = false;
 }
 
+/**
+ * \brief Save temperature.
+ *
+ * \details Periodically check temperature changes and save if found one.
+ */
 void settingsSaveDesiredTemp() {
   if (tempIsSaved == true) return;
   if ((unsigned long)(millis() - settingsLastSave) > ENCODER_CHANGE_PERIOD) {
@@ -267,8 +276,8 @@ void tempSensorSetup() {
   if (!sensors.getAddress(insideThermometer, 0)) {
     lcd.setCursor(0, 0);
     lcd.print("No sensor");
-    delay(10000);
     Serial.println("Unable to find address for Device 0");
+    delay(5000);
   } else {
     sensors.setResolution(insideThermometer, 9);
     sensors.requestTemperatures();
