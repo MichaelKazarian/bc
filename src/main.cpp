@@ -26,6 +26,7 @@ int isBtnLow(int btn);
 int isTempReady();
 void tempSensorRead();
 void encoderReadValue();
+void settingsSaveDesiredTemp();
 
 const bool USE_ENCODER           = true;
 const int MAIN_BTN               = 12;
@@ -36,9 +37,10 @@ const int STATUS_MON_READY       = 0;
 const int STATUS_MON_STOP        = 1;
 const int STATUS_MON_START       = 2;
 const float DEFAULT_TEMP         = 36;
-const int  BTN_TEMP_SETTING_DOWN = 10; // Encoder DT
-const int BTN_TEMP_SETTING_UP    = 11; // Encoder CLK
+const int  BTN_TEMP_SETTING_DOWN = 10; // Encoder DT too
+const int BTN_TEMP_SETTING_UP    = 11; // Encoder CLK too
 const int TEMP_READ_PERIOD       = 2000;
+const int ENCODER_CHANGE_PERIOD  = 4000;
 const int BTN_PRESS_PERIOD       = 200;
 const int rs = 3, en = 4, d4 = 6, d5 = 7, d6 = 8, d7 = 9;
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
@@ -51,7 +53,9 @@ int statusMon = STATUS_MON_UNDEFINED;
 int encoderClkLast;
 bool heatStatus = false;
 bool btnMainPressed = false;
+bool tempIsSaved = false;
 unsigned long tempTimeLastRead = 0;
+unsigned long settingsLastSave = 0;
 
 void setup() {
   btnsSetup();
@@ -77,6 +81,7 @@ void loop() {
   else readTempSettings();
   lcdprintState();
   tempObserve();
+  settingsSaveDesiredTemp();
 }
 
 void tempObserve() {
@@ -104,8 +109,6 @@ void tempSensorRead() {
     tempTimeLastRead = millis();
     sensors.requestTemperatures();
     tempCurrent = sensors.getTempC(insideThermometer);
-    Serial.println(millis() - tempTimeLastRead);
-    Serial.println(tempCurrent);
     if (tempCurrent != tempPrev) lcdprintTemperature(tempCurrent);
     tempPrev = tempCurrent;
   }
@@ -187,11 +190,21 @@ void lcdprintTempReady() {
 void loadSettings() {
   EEPROM.get(SAVED_TEMP_ADDR, tempDesired);
   if (tempDesired == -1) tempSetToDesired(DEFAULT_TEMP);
+  tempIsSaved = true;
 }
 
 void tempSetToDesired(int temp) {
-  EEPROM.put(SAVED_TEMP_ADDR, temp);
   tempDesired = temp;
+  tempIsSaved = false;
+}
+
+void settingsSaveDesiredTemp() {
+  if (tempIsSaved == true) return;
+  if ((unsigned long)(millis() - settingsLastSave) > ENCODER_CHANGE_PERIOD) {
+    settingsLastSave = millis();
+    EEPROM.put(SAVED_TEMP_ADDR, tempDesired);
+    tempIsSaved = true;
+  }
 }
 
 void heatStart() {
