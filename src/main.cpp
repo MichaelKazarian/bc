@@ -12,8 +12,8 @@ void lcdprintTemperature(float t);
 void readTempSettings();
 void lcdprintTempSetting(int v);
 void lcdprintState();
-void loadSavedSettings();
-void settingsSaveTemp(int temp);
+void loadSettings();
+void tempSetToDesired(int temp);
 void tempObserve();
 void heatStart();
 void heatStop();
@@ -45,8 +45,8 @@ LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
 int settingTemp = 0;
 float tempPrev= -99.9;
-float tempC = -99.9;
-int savedTemp = 0;
+float tempCurrent = -99.9;
+int tempDesired = 0;
 int statusMon = STATUS_MON_UNDEFINED;
 int encoderClkLast;
 bool heatStatus = false;
@@ -63,12 +63,12 @@ void setup() {
   Serial.begin(9600);
   tempSensorSetup();
   lcd.clear();
-  lcdprintTemperature(tempC);
-  loadSavedSettings();
+  lcdprintTemperature(tempCurrent);
+  loadSettings();
 
-  settingTemp = (int) savedTemp;
+  settingTemp = (int) tempDesired;
   lcdprintTempSetting(settingTemp);
-  // settingsSaveTemp(29);
+  // tempSetToDesired(29);
 }
 
 void loop() {
@@ -103,16 +103,16 @@ void tempSensorRead() {
   if ((unsigned long)(millis() - tempTimeLastRead) > TEMP_READ_PERIOD) {
     tempTimeLastRead = millis();
     sensors.requestTemperatures();
-    tempC = sensors.getTempC(insideThermometer);
+    tempCurrent = sensors.getTempC(insideThermometer);
     Serial.println(millis() - tempTimeLastRead);
-    Serial.println(tempC);
-    if (tempC != tempPrev) lcdprintTemperature(tempC);
-    tempPrev = tempC;
+    Serial.println(tempCurrent);
+    if (tempCurrent != tempPrev) lcdprintTemperature(tempCurrent);
+    tempPrev = tempCurrent;
   }
 }
 
 int isTempReady() {
-  return (tempC > savedTemp);
+  return (tempCurrent > tempDesired);
 }
 
 int isBtnLow(int btn) {
@@ -184,14 +184,14 @@ void lcdprintTempReady() {
   statusMon = STATUS_MON_READY;
 }
 
-void loadSavedSettings() {
-  EEPROM.get(SAVED_TEMP_ADDR, savedTemp);    
-  if (savedTemp == -1) settingsSaveTemp(DEFAULT_TEMP);
+void loadSettings() {
+  EEPROM.get(SAVED_TEMP_ADDR, tempDesired);
+  if (tempDesired == -1) tempSetToDesired(DEFAULT_TEMP);
 }
 
-void settingsSaveTemp(int temp) {
+void tempSetToDesired(int temp) {
   EEPROM.put(SAVED_TEMP_ADDR, temp);
-  savedTemp = temp;
+  tempDesired = temp;
 }
 
 void heatStart() {
@@ -223,7 +223,7 @@ void encoderReadValue() {
     if (settingTemp < 10) settingTemp = 10;
     if (settingTemp > 60) settingTemp = 60;
     lcdprintTempSetting(settingTemp);
-    settingsSaveTemp(settingTemp);
+    tempSetToDesired(settingTemp);
   }
   encoderClkLast = val;
 }
@@ -233,8 +233,8 @@ void readTempSettings() {
   if (isBtnLow(BTN_TEMP_SETTING_DOWN)) settingTemp--;
   if (settingTemp < 10) settingTemp = 10;
   if (settingTemp > 60) settingTemp = 60;
-  if (settingTemp != savedTemp) {
-    settingsSaveTemp(settingTemp);
+  if (settingTemp != tempDesired) {
+    tempSetToDesired(settingTemp);
     lcdprintTempSetting(settingTemp);
   }
 }
@@ -259,6 +259,6 @@ void tempSensorSetup() {
   } else {
     sensors.setResolution(insideThermometer, 9);
     sensors.requestTemperatures();
-    tempC = sensors.getTempC(insideThermometer);
+    tempCurrent = sensors.getTempC(insideThermometer);
   }
 }
