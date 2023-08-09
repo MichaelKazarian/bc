@@ -13,7 +13,7 @@ void readTempSettings();
 void lcdprintTempSetting(int v);
 void lcdprintState();
 void loadSavedSettings();
-void saveSettingsTemp(int temp);
+void settingsSaveTemp(int temp);
 void tempObserve();
 void heatStart();
 void heatStop();
@@ -25,28 +25,30 @@ void tempSensorSetup();
 int isBtnLow(int btn);
 int isTempReady();
 void tempSensorRead();
+void readEnc();
 
+const bool USE_ENCODER           = true;
+const int MAIN_BTN               = 12;
+const int HEAT_PIN               = 13;
 const int SAVED_TEMP_ADDR        = 4;
 const int STATUS_MON_UNDEFINED   = -1;
 const int STATUS_MON_READY       = 0;
 const int STATUS_MON_STOP        = 1;
 const int STATUS_MON_START       = 2;
 const float DEFAULT_TEMP         = 36;
-const int  BTN_TEMP_SETTING_DOWN = 10; 
-const int BTN_TEMP_SETTING_UP    = 11;
-const int TEMP_READ_PERIOD       = 100;
+const int  BTN_TEMP_SETTING_DOWN = 10; // Encoder DT
+const int BTN_TEMP_SETTING_UP    = 11; // Encoder CLK
+const int TEMP_READ_PERIOD       = 2000;
 const int BTN_PRESS_PERIOD       = 200;
-
 const int rs = 3, en = 4, d4 = 6, d5 = 7, d6 = 8, d7 = 9;
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
-int const MAIN_BTN = 12;
-int const HEAT_PIN = 13;
 int settingTemp = 0;
 float tempPrev= -99.9;
 float tempC = -99.9;
 int savedTemp = 0;
 int statusMon = STATUS_MON_UNDEFINED;
+int encoderClkLast;
 bool heatStatus = false;
 bool btnMainPressed = false;
 unsigned long tempTimeLastRead = 0;
@@ -66,12 +68,13 @@ void setup() {
 
   settingTemp = (int) savedTemp;
   lcdprintTempSetting(settingTemp);
-  // saveSettingsTemp(29);
+  // settingsSaveTemp(29);
 }
 
 void loop() {
   tempSensorRead();
-  readTempSettings();
+  if (USE_ENCODER == true) readEnc();
+  else readTempSettings();
   lcdprintState();
   tempObserve();
 }
@@ -183,10 +186,10 @@ void lcdprintTempReady() {
 
 void loadSavedSettings() {
   EEPROM.get(SAVED_TEMP_ADDR, savedTemp);    
-  if (savedTemp == -1) saveSettingsTemp(DEFAULT_TEMP);
+  if (savedTemp == -1) settingsSaveTemp(DEFAULT_TEMP);
 }
 
-void saveSettingsTemp(int temp) {
+void settingsSaveTemp(int temp) {
   EEPROM.put(SAVED_TEMP_ADDR, temp);
   savedTemp = temp;
 }
@@ -207,13 +210,31 @@ void heatStop() {
   lcd.print("          ");
 }
 
+void readEnc() {
+  int aVal = digitalRead(BTN_TEMP_SETTING_UP);
+  if (aVal != encoderClkLast){ // Means the knob is rotating
+    // if the knob is rotating, we need to determine direction
+    // We do that by reading pin B.
+    if (digitalRead(BTN_TEMP_SETTING_DOWN) != aVal) { // Means pin A Changed first - We're Rotating Clockwise
+      settingTemp--;
+    } else {// Otherwise B changed first and we're moving CCW
+      settingTemp++;
+    }
+    if (settingTemp < 10) settingTemp = 10;
+    if (settingTemp > 60) settingTemp = 60;
+    lcdprintTempSetting(settingTemp);
+    settingsSaveTemp(settingTemp);
+  }
+  encoderClkLast = aVal;
+}
+
 void readTempSettings() {
   if (isBtnLow(BTN_TEMP_SETTING_UP))   settingTemp++;
   if (isBtnLow(BTN_TEMP_SETTING_DOWN)) settingTemp--;
   if (settingTemp < 10) settingTemp = 10;
   if (settingTemp > 60) settingTemp = 60;
   if (settingTemp != savedTemp) {
-    saveSettingsTemp(settingTemp);
+    settingsSaveTemp(settingTemp);
     lcdprintTempSetting(settingTemp);
   }
 }
