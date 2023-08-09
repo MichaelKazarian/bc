@@ -1,8 +1,9 @@
-* Projevt info
-
+* Project info
 Currently, an encoder used in the project set the water temperature and starts/stops heating. To use buttons instead of encoder change USE_ENCODER to false.
+
 ** Library references
 18B20 temperature sensor [[https://github.com/esp8266/Basic/blob/master/libraries/dallas-temperature-control/examples/Tester/Tester.pde][example]]
 
 ** Other
 Avoiding the Overflow Issue When Using millis() - [[https://www.norwegiancreations.com/2018/10/arduino-tutorial-avoiding-the-overflow-issue-when-using-millis-and-micros/][link]]
+C documentation using [[https://habr.com/ru/articles/252101/][doxygen]]
