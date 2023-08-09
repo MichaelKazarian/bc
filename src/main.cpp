@@ -27,6 +27,7 @@ int isTempReady();
 void tempSensorRead();
 void encoderReadValue();
 void settingsSaveDesiredTemp();
+void checkTempSettings();
 
 const bool USE_ENCODER           = true;
 const int MAIN_BTN               = 12;
@@ -42,6 +43,8 @@ const int BTN_TEMP_SETTING_UP    = 11; // Encoder CLK too
 const int TEMP_READ_PERIOD       = 2000;
 const int ENCODER_CHANGE_PERIOD  = 4000;
 const int BTN_PRESS_PERIOD       = 200;
+const int TEMP_MIN               = 10;
+const int TEMP_MAX               = 60;
 const int rs = 3, en = 4, d4 = 6, d5 = 7, d6 = 8, d7 = 9;
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
@@ -242,8 +245,7 @@ void encoderReadValue() {
     } else {         // Otherwise B changed first and we're moving CCW
       settingTemp++;
     }
-    if (settingTemp < 10) settingTemp = 10;
-    if (settingTemp > 60) settingTemp = 60;
+    checkTempSettings();
     lcdprintTempSetting(settingTemp);
     tempSetToDesired(settingTemp);
   }
@@ -253,12 +255,16 @@ void encoderReadValue() {
 void readTempSettings() {
   if (isBtnLow(BTN_TEMP_SETTING_UP))   settingTemp++;
   if (isBtnLow(BTN_TEMP_SETTING_DOWN)) settingTemp--;
-  if (settingTemp < 10) settingTemp = 10;
-  if (settingTemp > 60) settingTemp = 60;
+  checkTempSettings();
   if (settingTemp != tempDesired) {
     tempSetToDesired(settingTemp);
     lcdprintTempSetting(settingTemp);
   }
+}
+
+void checkTempSettings() {
+  if (settingTemp < TEMP_MIN) settingTemp = TEMP_MIN;
+  if (settingTemp > TEMP_MAX) settingTemp = TEMP_MAX;
 }
 
 void btnsSetup() {
