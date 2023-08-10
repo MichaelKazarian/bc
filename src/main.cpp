@@ -28,6 +28,7 @@ void tempSensorRead();
 void encoderReadValue();
 void settingsSaveDesiredTemp();
 void checkTempSettings();
+void lcdBlinkHeating();
 
 const bool USE_ENCODER           = true;
 const int MAIN_BTN               = 12;
@@ -42,6 +43,7 @@ const int BTN_TEMP_SETTING_DOWN  = 10; // Encoder DT too
 const int BTN_TEMP_SETTING_UP    = 11; // Encoder CLK too
 const int TEMP_READ_PERIOD       = 2000;
 const int ENCODER_CHANGE_PERIOD  = 4000;
+const int HEATING_BLINK_PERIOD   = 1000;
 const int BTN_PRESS_PERIOD       = 200;
 const int TEMP_MIN               = 10;
 const int TEMP_MAX               = 60;
@@ -55,10 +57,12 @@ int tempDesired = 0;
 int statusMon = STATUS_MON_UNDEFINED;
 int encoderClkLast;
 bool heatStatus = false;
+bool heatBlinkStatus = false;
 bool btnMainPressed = false;
 bool tempIsSaved = false;
 unsigned long tempTimeLastRead = 0;
 unsigned long settingsLastSave = 0;
+unsigned long heatingBlinkLastSave = 0;
 
 void setup() {
   btnsSetup();
@@ -83,6 +87,7 @@ void loop() {
   else readTempSettings();
   lcdprintState();
   tempObserve();
+  lcdBlinkHeating();
   settingsSaveDesiredTemp();
 }
 
@@ -149,27 +154,27 @@ void lcdprintTemperature(float t) {
 }
 
 void lcdprintTempSetting(int v) {
-  lcd.setCursor(10, 0);
-  lcd.print("SET    ");
+  lcd.setCursor(9, 0);
+  lcd.print("|SET    ");
   lcd.setCursor(14, 0);
   lcd.print(v);
 }
 
 void lcdprintStop() {
   if (statusMon == STATUS_MON_STOP) return;
-  lcd.setCursor(10, 1);
-  lcd.print("     ");
-  lcd.setCursor(10, 1);
-  lcd.print("STOP");
+  lcd.setCursor(9, 1);
+  lcd.print("       ");
+  lcd.setCursor(9, 1);
+  lcd.print("|  STOP");
   statusMon = STATUS_MON_STOP;
 }
 
 void lcdprintStart() {
   if (statusMon == STATUS_MON_START) return;
-  lcd.setCursor(10, 1);
-  lcd.print("     ");
-  lcd.setCursor(10, 1);
-  lcd.print("START");
+  lcd.setCursor(9, 1);
+  lcd.print("       ");
+  lcd.setCursor(9, 1);
+  lcd.print("| START");
   statusMon = STATUS_MON_START;
 }
 
@@ -183,8 +188,8 @@ void lcdprintState() {
 
 void lcdprintTempReady() {
   if (statusMon == STATUS_MON_READY) return;
-  lcd.setCursor(10, 1);
-  lcd.print("READY");
+  lcd.setCursor(9, 1);
+  lcd.print("| READY");
   statusMon = STATUS_MON_READY;
 }
 
@@ -222,17 +227,14 @@ void settingsSaveDesiredTemp() {
 void heatStart() {
   digitalWrite(HEAT_PIN, HIGH);
   heatStatus = true;
-  lcd.setCursor(0, 1);
-  lcd.print("          ");
-  lcd.setCursor(0, 1);
-  lcd.print("HEATING   ");
+  lcdBlinkHeating();
 }
 
 void heatStop() {
   digitalWrite(HEAT_PIN, LOW);
   heatStatus = false;
   lcd.setCursor(0, 1);
-  lcd.print("          ");
+  lcd.print("         |");
 }
 
 void encoderReadValue() {
@@ -288,5 +290,24 @@ void tempSensorSetup() {
     sensors.setResolution(insideThermometer, 9);
     sensors.requestTemperatures();
     tempCurrent = sensors.getTempC(insideThermometer);
+  }
+}
+
+void lcdBlinkHeating() {
+  if (heatStatus == false) {
+    heatBlinkStatus = false;
+    return;
+  }
+  if ((unsigned long)(millis() - heatingBlinkLastSave) > HEATING_BLINK_PERIOD) {
+    heatingBlinkLastSave = millis();
+    if (heatBlinkStatus == true) {
+      lcd.setCursor(0, 1);
+      lcd.print("         ");
+      heatBlinkStatus = false;
+    } else {
+      lcd.setCursor(0, 1);
+      lcd.print("HEATING  ");
+      heatBlinkStatus = true;
+    }
   }
 }
