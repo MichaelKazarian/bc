@@ -39,15 +39,15 @@ const int STATUS_MON_READY       = 0;
 const int STATUS_MON_STOP        = 1;
 const int STATUS_MON_START       = 2;
 const float DEFAULT_TEMP         = 36;
-const int BTN_TEMP_SETTING_DOWN  = 10; // Encoder DT too
-const int BTN_TEMP_SETTING_UP    = 11; // Encoder CLK too
+const int BTN_TEMP_SETTING_DOWN  = 3; // Encoder DT too
+const int BTN_TEMP_SETTING_UP    = 4; // Encoder CLK too
 const int TEMP_READ_PERIOD       = 2000;
 const int ENCODER_CHANGE_PERIOD  = 4000;
 const int HEATING_BLINK_PERIOD   = 1000;
 const int BTN_PRESS_PERIOD       = 200;
 const int TEMP_MIN               = 10;
 const int TEMP_MAX               = 60;
-const int rs = 3, en = 4, d4 = 6, d5 = 7, d6 = 8, d7 = 9;
+const int rs = 10, en = 11, d4 = 6, d5 = 7, d6 = 8, d7 = 9;
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
 int settingTemp = 0;
