@@ -287,7 +287,7 @@ void tempSensorSetup() {
     Serial.println("Unable to find address for Device 0");
     delay(5000);
   } else {
-    sensors.setResolution(insideThermometer, 9);
+    sensors.setResolution(insideThermometer, 12);
     sensors.requestTemperatures();
     tempCurrent = sensors.getTempC(insideThermometer);
   }
