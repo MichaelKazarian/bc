@@ -16,7 +16,7 @@ void lcdprintTempSetting(int v);
 void lcdprintState();
 void loadSettings();
 void tempSetToDesired(int temp);
-void tempObserve();
+void tempReadyObserve();
 void heatStart();
 void heatStop();
 void lcdprintTempReady();
@@ -89,12 +89,12 @@ void loop() {
   if (USE_ENCODER == true) encoderReadValue();
   else readTempSettings();
   lcdprintState();
-  tempObserve();
+  tempReadyObserve();
   lcdBlinkHeating();
   settingsSaveDesiredTemp();
 }
 
-void tempObserve() {
+void tempReadyObserve() {
   if (isTempReady() == true) {
     if (heatStatus == true) {
       heatStop();
