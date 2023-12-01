@@ -78,6 +78,7 @@ void setup() {
   lcd.clear();
   lcdprintTemperature(tempCurrent);
   loadSettings();
+  encoderClkLast = digitalRead(BTN_TEMP_SETTING_UP);
 
   settingTemp = (int) tempDesired;
   lcdprintTempSetting(settingTemp);
@@ -241,19 +242,28 @@ void heatStop() {
 
 void encoderReadValue() {
   int val = digitalRead(BTN_TEMP_SETTING_UP);
-  if (val != encoderClkLast){ // Means the knob is rotating
-    // if the knob is rotating, we need to determine direction
-    // We do that by reading pin B.
-    if (digitalRead(BTN_TEMP_SETTING_DOWN) != val) {
-      settingTemp--; // Means pin A Changed first - We're Rotating Clockwise
-    } else {         // Otherwise B changed first and we're moving CCW
-      settingTemp++;
+  int time = 1000;
+  int changed = 0;
+  while (time > 0) {
+    if (val != encoderClkLast){ // Means the knob is rotating
+      // if the knob is rotating, we need to determine direction
+      // We do that by reading pin B.
+      if (digitalRead(BTN_TEMP_SETTING_DOWN) != val) {
+        settingTemp--; // Means pin A Changed first - We're Rotating Clockwise
+      } else {         // Otherwise B changed first and we're moving CCW
+        settingTemp++;
+      }
+      time = 1000;
+      encoderClkLast = val;
+      checkTempSettings();
+      if (time % 100 == 0 ) {
+        lcdprintTempSetting(settingTemp);
+      }
+      changed = 1;
     }
-    checkTempSettings();
-    lcdprintTempSetting(settingTemp);
-    tempSetToDesired(settingTemp);
+    time--;
   }
-  encoderClkLast = val;
+  if (changed == 1) tempSetToDesired(settingTemp);
 }
 
 void readTempSettings() {
