@@ -49,7 +49,7 @@ const int HEATING_BLINK_PERIOD   = 1000;
 const int BTN_PRESS_PERIOD       = 200;
 const int TEMP_MIN               = 10;
 const int TEMP_MAX               = 60;
-const int rs = 4, en = 3, d4 = 6, d5 = 7, d6 = 8, d7 = 9;
+const int rs = 4, en = 5, d4 = 6, d5 = 7, d6 = 8, d7 = 9;
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
 int settingTemp = 0;
