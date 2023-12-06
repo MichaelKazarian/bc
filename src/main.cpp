@@ -242,10 +242,11 @@ void heatStop() {
 
 void encoderReadValue() {
   int val = digitalRead(BTN_TEMP_SETTING_UP);
-  int time = 1000;
   int changed = 0;
-  while (time > 0) {
-    if (val != encoderClkLast){ // Means the knob is rotating
+  uint32_t time = millis();
+  uint32_t time2 = time;
+  while (time+40 >= time2) {
+    if (val != encoderClkLast) { // Means the knob is rotating
       // if the knob is rotating, we need to determine direction
       // We do that by reading pin B.
       if (digitalRead(BTN_TEMP_SETTING_DOWN) != val) {
@@ -253,15 +254,14 @@ void encoderReadValue() {
       } else {         // Otherwise B changed first and we're moving CCW
         settingTemp++;
       }
-      time = 1000;
       encoderClkLast = val;
       checkTempSettings();
-      if (time % 100 == 0 ) {
+      if (time % 10) {
         lcdprintTempSetting(settingTemp);
       }
       changed = 1;
     }
-    time--;
+    time2++;
   }
   if (changed == 1) tempSetToDesired(settingTemp);
 }
