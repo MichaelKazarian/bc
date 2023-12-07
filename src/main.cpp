@@ -255,10 +255,11 @@ void encoderReadValue() {
       }
       encoderClkLast = val;
       checkTempSettings();
-      if (time % 10) {
+      if (time2 % 20) {
         lcdprintTempSetting(settingTemp);
       }
       changed = 1;
+      time = millis();
     }
     time2++;
   }
