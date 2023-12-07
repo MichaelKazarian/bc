@@ -72,15 +72,14 @@ void setup() {
 
   lcd.begin(16, 2); // (16x2) LCD initialize
   lcd.print("Loading...");
-  delay(500);
+  delay(400);
   Serial.begin(9600);
   tempSensorSetup();
-  lcd.clear();
-  lcdprintTemperature(tempCurrent);
   loadSettings();
   encoderClkLast = digitalRead(BTN_TEMP_SETTING_UP);
-
   settingTemp = (int) tempDesired;
+  lcd.clear();
+  lcdprintTemperature(tempCurrent);
   lcdprintTempSetting(settingTemp);
 }
 
