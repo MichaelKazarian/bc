@@ -293,15 +293,18 @@ void btnsSetup() {
 
 void tempSensorSetup() {
   sensors.begin();
-  if (!sensors.getAddress(insideThermometer, 0)) {
-    lcd.setCursor(0, 0);
-    lcd.print("No sensor");
-    Serial.println("Unable to find address for Device 0");
-    delay(5000);
-  } else {
-    sensors.setResolution(insideThermometer, 12);
-    sensors.requestTemperatures();
-    tempCurrent = sensors.getTempC(insideThermometer);
+  while (1) {
+    if (!sensors.getAddress(insideThermometer, 0)) {
+      lcd.setCursor(0, 0);
+      lcd.print("No sensor");
+      Serial.println("Unable to find address for Device 0");
+      delay(5000);
+    } else {
+      sensors.setResolution(insideThermometer, 12);
+      sensors.requestTemperatures();
+      tempCurrent = sensors.getTempC(insideThermometer);
+      break;
+    }
   }
 }
 
