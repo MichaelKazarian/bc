@@ -9,13 +9,12 @@
 
 
 ((nil . ((eval . (progn
-                   (setq-local company-clang-arguments (clang-dirs))
                    (setq-local tags-candidate '("."))
                    (setq-local clang-tags-candidate
-                               '("~/.platformio/packages/framework-arduino-avr/cores/arduino"
-                                 "~/bc/.pio/libdeps/pro16MHzatmega328/LiquidCrystal/src"
-                                 "~/bc/.pio/libdeps/pro16MHzatmega328/DallasTemperature"
+                               '("~/.platformio/packages/framework-arduino-avr"
+                                 "~/bc/.pio/libdeps/pro16MHzatmega328"
                                  "."))
+                   (setq-local company-clang-arguments (clang-src-dirs))
                    (add-to-list 'company-backends '(company-etags company-clang))
                    (add-hook 'after-save-hook
                              (lambda ()
